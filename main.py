@@ -44,8 +44,6 @@ def create_dict(flight_data, user_history):
     global cityIndex
     dict = {}
 
-    # for each flight path in user_history
-
     for flight_path in flight_data:
         flights = flight_path['segments']
         from_place = flights[0]['from_place']['Code'] # from location
@@ -245,6 +243,7 @@ def lsh(k, flight_matrix, user_matrix, y, cosine_sim_cache):
     user_vector = user_matrix[y]
     max_cos_sim_in_bucket = -sys.maxsize-1
     max_flight_path_in_bucket = 0
+    comparison_count = 0
 
     # normalize each vector
     M = np.random.standard_normal(size=(k,7)) # lth hash table
@@ -264,17 +263,19 @@ def lsh(k, flight_matrix, user_matrix, y, cosine_sim_cache):
         hash_val_x = sign_bit_val(dp_x)
 
         if hash_val_x == hash_val_flight_path:
+            comparison_count += 1
             cosine_sim_val = cosine_sim_cache[y][i]
 
             if cosine_sim_val >= max_cos_sim_in_bucket:
                 max_cos_sim_in_bucket = cosine_sim_val
                 max_flight_path_in_bucket = i
-
-    return (max_cos_sim_in_bucket, max_flight_path_in_bucket)
+    # print("Number of comparisons: " + str(comparison_count))
+    return (max_cos_sim_in_bucket, max_flight_path_in_bucket, comparison_count)
 
 def lsh_test(l, k, user_matrix, flight_matrix, cache):
     max_heap = []
     recommendations = []
+    total_comparisons = 0
     for i in range(len(user_matrix)): # query - user flight path
         user_vector = user_matrix[i]
         max_cos_sim = -sys.maxsize-1
@@ -290,15 +291,18 @@ def lsh_test(l, k, user_matrix, flight_matrix, cache):
                 max_cos_sim = lsh_val_max_cosim
                 max_flight_path = lsh_val_max_flight_path
 
+            total_comparisons += lsh_val[2]
+
         recommendations.append(max_flight_path)
 
+    # print("total # of comparisons: " + str(total_comparisons))
     return recommendations
 
 '''
 Compares the average cost of a user's flight history and that of flight recommendations
 Evaluates if our recommendations indeed perform better than the user's current travel patterns
 '''
-def compareCost(user_matrix, flight_matrix, rec):
+def compareCost(user_matrix, flight_matrix, recommendations):
     avg_user_costs = np.mean([path[0] for path in user_matrix])
     avg_rec_costs = np.mean([flight_matrix[idx][0] for idx in recommendations])
     return (avg_rec_costs < avg_user_costs, abs(round(avg_user_costs-avg_rec_costs,2)))
@@ -307,7 +311,7 @@ def compareCost(user_matrix, flight_matrix, rec):
 Compares the average duration of a user's flight history and that of flight recommendations
 Evaluates if our recommendations indeed perform better than the user's current travel patterns
 '''
-def compareDuration(user_matrix, flight_matrix, rec):
+def compareDuration(user_matrix, flight_matrix, recommendations):
     avg_user_durations = np.mean([path[1] for path in user_matrix])
     avg_rec_durations = np.mean([flight_matrix[idx][1] for idx in recommendations])
     return (avg_rec_durations < avg_user_durations, abs(round(avg_user_durations-avg_rec_durations,2)))
@@ -328,15 +332,15 @@ averagesDict = computeAverages(dict)
 costRank = rankAirlinesByCost(averagesDict)
 durationRank = rankAirlinesByDuration(averagesDict)
 frequencyRank = rankAirlinesByFrequency(averagesDict)
-# print("Airlines ranked by duration:")
-# print(durationRank)
-# print()
-# print("Airlines ranked by cost:")
-# print(costRank)
-# print()
-# print("Airlines ranked by frequency:")
-# print(frequencyRank)
-# print()
+print("Airlines ranked by duration:")
+print(durationRank)
+print()
+print("Airlines ranked by cost:")
+print(costRank)
+print()
+print("Airlines ranked by frequency:")
+print(frequencyRank)
+print()
 print("------------BEST AIRLINE ACROSS ALL FACTORS (COST, DURATION, FREQUENCY):------------")
 airlinesScored = scoreAirlines(durationRank, costRank, frequencyRank, airlineIndexDict)
 print("Top airlines: " + str(airlinesScored))
@@ -355,7 +359,7 @@ user_matrix = createUserMatrix('test.csv')
 cache = create_cosine_sim_cache(user_matrix, flight_matrix)
 
 print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
-recommendations = set(lsh_test(3, 3, user_matrix, flight_matrix, cache))
+recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
 for rec in recommendations:
     print(filteredFlightData[rec])
     print()
@@ -363,13 +367,13 @@ for rec in recommendations:
 print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
 costBenchmark = compareCost(user_matrix, flight_matrix, recommendations)
 if costBenchmark[0]:
-    print("Yes, User saves on average $" + str(costBenchmark[1]))
+    print("Yes, User saves on average $" + str(costBenchmark[1]) + " per flight path")
 else:
-    print("No, User loses on average $" + str(costBenchmark[1]))
+    print("No, User loses on average $" + str(costBenchmark[1]) + " per flight path")
 print()
 print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
 durationBenchmark = compareDuration(user_matrix, flight_matrix, recommendations)
 if durationBenchmark[0]:
-    print("Yes, User saves on average " + str(durationBenchmark[1]) + " min")
+    print("Yes, User saves on average " + str(durationBenchmark[1]) + " min per flight path")
 else:
-    print("No, User loses on average " + str(durationBenchmark[1]) + " min")
+    print("No, User gains on average " + str(durationBenchmark[1]) + " min per flight path")
