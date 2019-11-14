@@ -337,11 +337,15 @@ bestDurVal = sys.maxsize
 bestFreqVal = -sys.maxsize-1
 
 print("------------AIRLINES THAT OFFER THE OPTIMAL TRADE-OFF BETWEEN 1) COST, 2) DURATION & 3) FREQUENCY------------")
+airlineNum = 0
+winningAirlines = []
 for p in paretoPoints:
     # print(p)
     airlines = findAirlineByValue(averagesDict, p)
     for airline in airlines:
-        print(airline)
+        winningAirlines.append(airline)
+        print("#" + str(airlineNum) + ": " + airline)
+        airlineNum +=1
 
         if p[0] < bestCostVal:
             bestCostVal = p[0]
@@ -361,73 +365,51 @@ print("------------To get the best value for duration, pick: " + bestDuration)
 print()
 print("------------To get the best value for frequency, pick: " + bestFreq)
 
+print()
+print("Which airline would you like to fly with? ")
 num = int(input())
-print(num)
-
+print()
+winning_airline = winningAirlines[num]
+print("You picked Airline #" + str(num) + ": " + winning_airline)
+print()
 '''Plot graph'''
-fig = plt.figure()
-ax = plt.axes(projection='3d')
-dp = np.array(list(dominatedPoints))
-pp = np.array(list(paretoPoints))
+# fig = plt.figure()
+# ax = plt.axes(projection='3d')
+# dp = np.array(list(dominatedPoints))
+# pp = np.array(list(paretoPoints))
+#
+# ax.scatter(dp[:,0],dp[:,1],dp[:,2])
+# ax.scatter(pp[:,0],pp[:,1],pp[:,2],color='red')
+#
+# ax.set_xlabel('cost')
+# ax.set_ylabel('duration')
+# ax.set_zlabel('frequency')
+# plt.show()
 
-ax.scatter(dp[:,0],dp[:,1],dp[:,2])
-ax.scatter(pp[:,0],pp[:,1],pp[:,2],color='red')
-
-ax.set_xlabel('cost')
-ax.set_ylabel('duration')
-ax.set_zlabel('frequency')
-plt.show()
-
-# print()
-# print("*"*8 + " dominated answers " + ("*"*8))
-# for p in dominatedPoints:
-#     print(p)
-
-# costRank = rankAirlinesByCost(averagesDict)
-# durationRank = rankAirlinesByDuration(averagesDict)
-# frequencyRank = rankAirlinesByFrequency(averagesDict)
-# print("Airlines ranked by duration:")
-# print(durationRank)
-# print()
-# print("Airlines ranked by cost:")
-# print(costRank)
-# print()
-# print("Airlines ranked by frequency:")
-# print(frequencyRank)
-# print()
-# print("------------BEST AIRLINE ACROSS ALL FACTORS (COST, DURATION, FREQUENCY):------------")
-# airlinesScored = scoreAirlines(durationRank, costRank, frequencyRank, airlineIndexDict)
-# print("Top airlines: " + str(airlinesScored))
-# winning_airline = airlinesScored[0][0]
-# print("Winning airline: " + winning_airline)
-# print()
-# print("Scoring:")
-# print(scoreAirlines(durationRank, costRank, frequencyRank, airlineIndexDict))
-# print()
 '''
 PHASE 2
 '''
-# filteredFlightData = filterFlightDataByAirline(flight_data, winning_airline)
-# flight_matrix = createFlightMatrix(filteredFlightData)
-# user_matrix = createUserMatrix('test.csv')
-# cache = create_cosine_sim_cache(user_matrix, flight_matrix)
-#
-# print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
-# recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
-# for rec in recommendations:
-#     print(filteredFlightData[rec])
-#     print()
-#
-# print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
-# costBenchmark = compareCost(user_matrix, flight_matrix, recommendations)
-# if costBenchmark[0]:
-#     print("Yes, User saves on average $" + str(costBenchmark[1]) + " per flight path")
-# else:
-#     print("No, User loses on average $" + str(costBenchmark[1]) + " per flight path")
-# print()
-# print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
-# durationBenchmark = compareDuration(user_matrix, flight_matrix, recommendations)
-# if durationBenchmark[0]:
-#     print("Yes, User saves on average " + str(durationBenchmark[1]) + " min per flight path")
-# else:
-#     print("No, User gains on average " + str(durationBenchmark[1]) + " min per flight path")
+filteredFlightData = filterFlightDataByAirline(flight_data, winning_airline)
+flight_matrix = createFlightMatrix(filteredFlightData)
+user_matrix = createUserMatrix('test.csv')
+cache = create_cosine_sim_cache(user_matrix, flight_matrix)
+
+print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
+recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
+for rec in recommendations:
+    print(filteredFlightData[rec])
+    print()
+
+print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
+costBenchmark = compareCost(user_matrix, flight_matrix, recommendations)
+if costBenchmark[0]:
+    print("Yes, User saves on average $" + str(costBenchmark[1]) + " per flight path")
+else:
+    print("No, User loses on average $" + str(costBenchmark[1]) + " per flight path")
+print()
+print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
+durationBenchmark = compareDuration(user_matrix, flight_matrix, recommendations)
+if durationBenchmark[0]:
+    print("Yes, User saves on average " + str(durationBenchmark[1]) + " min per flight path")
+else:
+    print("No, User gains on average " + str(durationBenchmark[1]) + " min per flight path")
