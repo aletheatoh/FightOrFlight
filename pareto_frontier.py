@@ -1,39 +1,41 @@
 import numpy as np
 
 def simple_cull(inputPoints):
-    paretoPoints = set()
+    paretoPoints = []
     candidateRowNr = 0
     dominatedPoints = set()
-    while True:
-        candidateRow = inputPoints[candidateRowNr]
-        inputPoints.remove(candidateRow)
+
+    while len(inputPoints) > 0:
+        candidateRow = inputPoints.pop()
         rowNr = 0
-        nonDominated = True
-        while len(inputPoints) != 0 and rowNr < len(inputPoints):
-            row = inputPoints[rowNr]
-            if dominates(candidateRow, row):
-                # If it is worse on all features remove the row from the array
-                inputPoints.remove(row)
-                dominatedPoints.add(tuple(row))
-            elif dominates(row, candidateRow):
-                nonDominated = False
+        dominated = False
+        while len(inputPoints) > 0 and rowNr < len(paretoPoints):
+            currRow = paretoPoints[rowNr]
+            comp = dominates(currRow, candidateRow)
+
+            if not comp: # candidateRow dominates currRow
+                # inputPoints.remove(currRow)
+                paretoPoints.remove(currRow)
+                dominatedPoints.add(tuple(currRow))
+                rowNr += 1
+            elif comp: # currRow dominates candidateRow
                 dominatedPoints.add(tuple(candidateRow))
-                rowNr += 1
-            else:
-                rowNr += 1
+                dominated = True
+                break
 
-        if nonDominated:
+        if not dominated:
             # add the non-dominated point to the Pareto frontier
-            paretoPoints.add(tuple(candidateRow))
+            paretoPoints.append(tuple(candidateRow))
 
-        if len(inputPoints) == 0:
-            break
     return paretoPoints, dominatedPoints
 
-def dominates(row, candidateRow):
+'''
+Returns True if a dominates b, False otherwise
+'''
+def dominates(a, b):
     sum = 0
-    if row[0] <= candidateRow[0]: sum += 1 # duration
-    if row[1] <= candidateRow[1]: sum += 1 # price
-    if row[2] >= candidateRow[2]: sum += 1 # frequency
+    if a[0] <= b[0]: sum += 1 # cost
+    if a[1] <= b[1]: sum += 1 # duration
+    if a[2] >= b[2]: sum += 1 # frequency
 
-    return sum
+    return sum == 3

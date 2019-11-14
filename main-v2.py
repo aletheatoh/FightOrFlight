@@ -81,7 +81,7 @@ def create_dict(flight_data, user_history):
         if airlineWithMaxDuration not in dict:
             dict[airlineWithMaxDuration] = [] # include duplicate flight paths
 
-        flight_item = (flight_path['duration'], flight_path['price'])
+        flight_item = (flight_path['price'], flight_path['duration'])
         dict[airlineWithMaxDuration].append(flight_item) # add a flight path (NOT flight) to an airline in dictionary
 
     return dict
@@ -93,10 +93,9 @@ def computeAverages(airlineDict):
     for airline in airlineDict.keys():
         airline_flight_paths = airlineDict[airline]
         freq = len(airline_flight_paths) # frequency of flight paths offered by the airline
-        airlineDict[airline] = [sum(x)/freq for x in zip(*airline_flight_paths)]
-        airlineDict[airline].append(freq)
-        airlineDict[airline] = tuple(airlineDict[airline])
-
+        res = [sum(x)/freq for x in zip(*airline_flight_paths)]
+        res.append(freq)
+        airlineDict[airline] = tuple(res)
     return airlineDict
 
 
@@ -328,12 +327,42 @@ def findAirlineByValue(airlineDict, value):
     indexes = getIndexPositions(list(airlineDict.values()), value)
     return [list(airlineDict.keys())[i] for i in indexes]
 
-print(averagesDict)
-print()
-print("*"*8 + " non-dominated answers " + ("*"*8))
+# print(averagesDict)
+# print()
+bestCost = ''
+bestDuration = ''
+bestFreq = ''
+bestCostVal = sys.maxsize
+bestDurVal = sys.maxsize
+bestFreqVal = -sys.maxsize-1
+
+print("------------AIRLINES THAT OFFER THE OPTIMAL TRADE-OFF BETWEEN 1) COST, 2) DURATION & 3) FREQUENCY------------")
 for p in paretoPoints:
-    print(p)
-    print(findAirlineByValue(averagesDict, p))
+    # print(p)
+    airlines = findAirlineByValue(averagesDict, p)
+    for airline in airlines:
+        print(airline)
+
+        if p[0] < bestCostVal:
+            bestCostVal = p[0]
+            bestCost = airline
+
+        if p[1] < bestDurVal:
+            bestDurVal = p[1]
+            bestDuration = airline
+
+        if p[2] > bestFreqVal:
+            bestFreqVal = p[2]
+            bestFreq = airline
+print()
+print("------------To get the best value for cost, pick: " + bestCost)
+print()
+print("------------To get the best value for duration, pick: " + bestDuration)
+print()
+print("------------To get the best value for frequency, pick: " + bestFreq)
+
+num = int(input())
+print(num)
 
 '''Plot graph'''
 fig = plt.figure()
@@ -344,8 +373,8 @@ pp = np.array(list(paretoPoints))
 ax.scatter(dp[:,0],dp[:,1],dp[:,2])
 ax.scatter(pp[:,0],pp[:,1],pp[:,2],color='red')
 
-ax.set_xlabel('duration')
-ax.set_ylabel('cost')
+ax.set_xlabel('cost')
+ax.set_ylabel('duration')
 ax.set_zlabel('frequency')
 plt.show()
 
