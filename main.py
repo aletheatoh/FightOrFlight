@@ -21,7 +21,8 @@ airlineIndexDict = {
     "Spirit Airlines" : 7,
     "United" : 8,
     "Linear Air" : 9,
-    "Boutique Air": 10
+    "Boutique Air": 10,
+    "Sun Country Airlines": 11
     }
 
 citiesIndexDict = {}
@@ -201,7 +202,6 @@ def createFlightMatrix(flight_data):
     idx = 0
     for flight_path in flight_data:
         flightMatrix.append(createVector(flight_path))
-
     return flightMatrix
 
 '''

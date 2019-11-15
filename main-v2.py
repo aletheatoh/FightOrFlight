@@ -33,8 +33,6 @@ airlineIndexDict = {
 citiesIndexDict = {}
 cityIndex = 0
 
-reverseDict = {}
-
 '''
 Obtains all possible flight paths/combinations for a given set of destinations
 '''
@@ -177,7 +175,6 @@ def createFlightMatrix(flight_data):
     idx = 0
     for flight_path in flight_data:
         flightMatrix.append(createVector(flight_path))
-
     return flightMatrix
 
 '''
@@ -292,6 +289,28 @@ def compareDuration(user_matrix, flight_matrix, recommendations):
     avg_rec_durations = np.mean([flight_matrix[idx][1] for idx in recommendations])
     return (avg_rec_durations < avg_user_durations, abs(round(avg_user_durations-avg_rec_durations,2)))
 
+'''
+Returns all indexes of an element in a list
+'''
+def getIndexPositions(listOfElements, element):
+    indexPosList = []
+    indexPos = 0
+    while True:
+        try:
+            indexPos = listOfElements.index(element, indexPos)
+            indexPosList.append(indexPos)
+            indexPos += 1
+        except ValueError as e:
+            break
+    return indexPosList
+
+'''
+Given an input of indxes, returns the list of airlines from the dictionary of airlines
+'''
+def findAirlineByValue(airlineDict, value):
+    indexes = getIndexPositions(list(airlineDict.values()), value)
+    return [list(airlineDict.keys())[i] for i in indexes]
+
 '''---------------------MAIN METHOD-----------------------'''
 
 '''
@@ -303,37 +322,18 @@ for line in all_data:
 user_history = user_input(['RDU','ATL'])
 dict = create_dict(flight_data, user_history)
 
-# compute averages and score each airline
+# compute averages of each airline
 averagesDict = computeAverages(dict)
 inputPoints = list(averagesDict.values())
+
+# compute the pareto frontier using simple cull algorithm
 paretoPoints, dominatedPoints = simple_cull(inputPoints)
 
-def getIndexPositions(listOfElements, element):
-    indexPosList = []
-    indexPos = 0
-    while True:
-        try:
-            # Search for item in list from indexPos to the end of list
-            indexPos = listOfElements.index(element, indexPos)
-            # Add the index position in list
-            indexPosList.append(indexPos)
-            indexPos += 1
-        except ValueError as e:
-            break
-
-    return indexPosList
-
-def findAirlineByValue(airlineDict, value):
-    indexes = getIndexPositions(list(airlineDict.values()), value)
-    return [list(airlineDict.keys())[i] for i in indexes]
-
-# print(averagesDict)
-# print()
 bestCost = ''
-bestDuration = ''
-bestFreq = ''
 bestCostVal = sys.maxsize
+bestDuration = ''
 bestDurVal = sys.maxsize
+bestFreq = ''
 bestFreqVal = -sys.maxsize-1
 
 print("------------AIRLINES THAT OFFER THE OPTIMAL TRADE-OFF BETWEEN 1) COST, 2) DURATION & 3) FREQUENCY------------")
@@ -367,11 +367,25 @@ print("------------To get the best value for frequency, pick: " + bestFreq)
 
 print()
 print("Which airline would you like to fly with? ")
+rangeInput = len(winningAirlines) - 1
+# user input
 num = int(input())
 print()
+validInput = False
+while not validInput:
+    if num <= rangeInput:
+        validInput = True
+        break
+    else:
+        print("Please give an airline number between 0 and " + str(rangeInput) + ".")
+        print("Which airline would you like to fly with? ")
+        num = int(input())
+        print()
+
 winning_airline = winningAirlines[num]
 print("You picked Airline #" + str(num) + ": " + winning_airline)
 print()
+
 '''Plot graph'''
 # fig = plt.figure()
 # ax = plt.axes(projection='3d')
