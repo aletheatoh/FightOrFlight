@@ -11,6 +11,7 @@ import time
 import sys
 import heapq
 import csv
+import pprint
 
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
@@ -392,8 +393,8 @@ print()
 # dp = np.array(list(dominatedPoints))
 # pp = np.array(list(paretoPoints))
 #
-# ax.scatter(dp[:,0],dp[:,1],dp[:,2])
-# ax.scatter(pp[:,0],pp[:,1],pp[:,2],color='red')
+# ax.scatter(1/dp[:,0],1/dp[:,1],dp[:,2])
+# ax.scatter(1/pp[:,0],1/pp[:,1],pp[:,2],color='red')
 #
 # ax.set_xlabel('cost')
 # ax.set_ylabel('duration')
@@ -411,7 +412,8 @@ cache = create_cosine_sim_cache(user_matrix, flight_matrix)
 print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
 recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
 for rec in recommendations:
-    print(filteredFlightData[rec])
+    pprint.pprint(filteredFlightData[rec])
+    print()
     print()
 
 print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
