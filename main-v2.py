@@ -1,6 +1,6 @@
 # from flight_data import data
 from data import all_data
-from dataset1 import user_data
+from dataset4 import user_data
 
 from pareto_frontier import simple_cull, dominates
 
@@ -385,6 +385,8 @@ flight_data = []
 for line in all_data:
     flight_data += line['result']
 user_history = user_input(user_data)
+print("Total number of one-way flight paths user travels on: " + str(len(user_history)))
+print()
 dict = create_dict(flight_data, user_history)
 # print(dict)
 # print()
