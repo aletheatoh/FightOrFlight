@@ -1,5 +1,6 @@
 # from flight_data import data
 from data import all_data
+from dataset4 import user_data
 
 from pareto_frontier import simple_cull, dominates
 
@@ -33,12 +34,32 @@ airlineIndexDict = {
 
 citiesIndexDict = {}
 cityIndex = 0
+totalNumFlightPaths = 0
+userDict = {}
 
 '''
-Obtains all possible flight paths/combinations for a given set of destinations
+Obtains all possible flight paths a user has travelled on
 '''
-def user_input(destinations):
-    flight_paths = [(x,y) for x in destinations for y in destinations if x != y]
+def user_input(user_flight_data):
+    global citiesIndexDict
+    global cityIndex
+
+    flight_paths = set([])
+    for flight_path in user_flight_data:
+        flights = flight_path['segments']
+        from_place = flights[0]['from_place']['Code'] # from location
+        to_place = flights[-1]['to_place']['Code'] # end location
+
+        flight_paths.add((from_place,to_place))
+
+        if from_place not in citiesIndexDict:
+            citiesIndexDict[from_place] = cityIndex
+            cityIndex += 1
+
+        if to_place not in citiesIndexDict:
+            citiesIndexDict[to_place] = cityIndex
+            cityIndex += 1
+
     return flight_paths
 
 '''
@@ -49,6 +70,8 @@ include the airline. We are only considering flight paths that a user travels on
 def create_dict(flight_data, user_history):
     global citiesIndexDict
     global cityIndex
+    global totalNumFlightPaths
+
     dict = {}
 
     for flight_path in flight_data:
@@ -65,23 +88,27 @@ def create_dict(flight_data, user_history):
             citiesIndexDict[to_place] = cityIndex
             cityIndex += 1
 
-        airlineWithMaxDuration = 0
-        max_duration = 0
-        # for each flight in a given flight path
-        for flight in flights:
-            carrier = flight['carrier']['Name']
+        if (from_place,to_place) in user_history: # only considering flight paths that a user travels on
 
-            # find the airline with max duration in a given flight path
-            if flight['duration'] >= max_duration:
-                airlineWithMaxDuration = carrier
-                max_duration = flight['duration']
+            totalNumFlightPaths += len(flights)
 
-        # add flight_path to dictionary with airlineWithMaxDuration as the key.
-        if airlineWithMaxDuration not in dict:
-            dict[airlineWithMaxDuration] = [] # include duplicate flight paths
+            airlineWithMaxDuration = 0
+            max_duration = 0
+            # for each flight in a given flight path
+            for flight in flights:
+                carrier = flight['carrier']['Name']
 
-        flight_item = (flight_path['price'], flight_path['duration'])
-        dict[airlineWithMaxDuration].append(flight_item) # add a flight path (NOT flight) to an airline in dictionary
+                # find the airline with max duration in a given flight path
+                if flight['duration'] >= max_duration:
+                    airlineWithMaxDuration = carrier
+                    max_duration = flight['duration']
+
+            # add flight_path to dictionary with airlineWithMaxDuration as the key.
+            if airlineWithMaxDuration not in dict:
+                dict[airlineWithMaxDuration] = [] # include duplicate flight paths
+
+            flight_item = (flight_path['price'], flight_path['duration'])
+            dict[airlineWithMaxDuration].append(flight_item) # add a flight path (NOT flight) to an airline in dictionary
 
     return dict
 
@@ -97,30 +124,50 @@ def computeAverages(airlineDict):
         airlineDict[airline] = tuple(res)
     return airlineDict
 
-
-def filterFlightDataByAirline(flight_data, winning_airline):
+def filterFlightDataByAirline(flight_data, winning_airline, user_history):
     filtered = []
     for flight_path in flight_data:
         include = False
-        for flight in flight_path['segments']:
-            # we only want to look at flight paths offered by the winning airline
-            if winning_airline == flight['carrier']['Name']:
-                include = True
-                break
+
+        flights = flight_path['segments']
+        from_place = flights[0]['from_place']['Code'] # from location
+        to_place = flights[-1]['to_place']['Code'] # end location
+
+        if (from_place,to_place) in user_history: # only considering flight paths that a user travels on
+            for flight in flights:
+                # we only want to look at flight paths offered by the winning airline
+                if winning_airline == flight['carrier']['Name']:
+                    include = True
+                    break
 
         if include:
             filtered.append(flight_path)
 
     return filtered
 
+def flightPathMatch(flights, from_place, to_place):
+    from_place_flights = flights[0]['from_place']['Code'] # from location
+    to_place_flights = flights[-1]['to_place']['Code'] # end location
+
+    return from_place_flights == from_place and to_place_flights == to_place
+
 '''Create a single vector to represent a flight path
     In the format of flightPathVector = [Price, Duration, from_placeIndex, to_placeIndex, DepartureTime, ArrivalTime, # of stops]'''
 def createVector(flight_path):
     global citiesIndexDict
+    global cityIndex
 
     flights = flight_path['segments']
     from_place = flights[0]['from_place']['Code'] # from location
     to_place = flights[-1]['to_place']['Code'] # end location
+
+    if from_place not in citiesIndexDict:
+        citiesIndexDict[from_place] = cityIndex
+        cityIndex += 1
+    if to_place not in citiesIndexDict:
+        citiesIndexDict[to_place] = cityIndex
+        cityIndex += 1
+
     duration = flight_path['duration']
     price = flight_path['price']
     departureTimeObj = datetime.datetime.strptime(flight_path['departure_time'],"%Y-%m-%dT%H:%M:%S")
@@ -131,52 +178,16 @@ def createVector(flight_path):
     from_placeIndex = citiesIndexDict[from_place]
     to_placeIndex = citiesIndexDict[to_place]
 
-    return [price, duration, from_placeIndex, to_placeIndex, departureTime, arrivalTime, numOfStops]
+    # return [price, duration, from_placeIndex, to_placeIndex, departureTime, arrivalTime, numOfStops]
+    return [price, duration, departureTime, arrivalTime, numOfStops]
 
-'''Create vectors for each flight path in a user's past flight data and return a np.2dArray'''
-def createUserMatrix(fileName):
-    global citiesIndexDict
-    global cityIndex
-
-    user_history = []
-    with open(fileName) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        next(csv_reader) # skip header row
-        for row in csv_reader:
-            flightPath = []
-
-            flightPath.append(float(row[0])) # price
-            flightPath.append(float(row[1])*60) # duration in minutes
-
-            from_place = row[2]
-            if from_place not in citiesIndexDict:
-                citiesIndexDict[from_place] = cityIndex
-                cityIndex += 1
-            to_place = row[3]
-            if to_place not in citiesIndexDict:
-                citiesIndexDict[to_place] = cityIndex
-                cityIndex += 1
-
-            flightPath.append(citiesIndexDict[from_place]) # from place
-            flightPath.append(citiesIndexDict[to_place]) # to place
-
-            departureTimeObj = datetime.datetime.strptime(row[4],"%H%M")
-            flightPath.append(departureTimeObj.hour*60*60 + departureTimeObj.minute*60 + departureTimeObj.second)
-            arrivalTimeObj = datetime.datetime.strptime(row[5],"%H%M")
-            flightPath.append(arrivalTimeObj.hour*60*60 + arrivalTimeObj.minute*60 + arrivalTimeObj.second)
-            flightPath.append(float(row[6])) # number of stops
-
-            user_history.append(flightPath)
-
-    return user_history
-
-'''Create vectors for each flight path in the flight data and return a np.2dArray'''
-def createFlightMatrix(flight_data):
-    flightMatrix = []
+'''Create vectors for each flight path in the data set and return a np.2dArray'''
+def createMatrix(flight_data):
+    matrix = []
     idx = 0
     for flight_path in flight_data:
-        flightMatrix.append(createVector(flight_path))
-    return flightMatrix
+        matrix.append(createVector(flight_path))
+    return matrix
 
 '''
 Computes the cosine similarity between two flight paths
@@ -197,6 +208,30 @@ def create_cosine_sim_cache(user_matrix, flight_matrix):
             cosine_sim_cache[i][j] = val
     return cosine_sim_cache
 
+'''
+Brute force search
+'''
+def brute_force(user_matrix, flight_matrix, classes, y, cache):
+    max_cos_sim = - sys.maxsize-1
+    max_flight_path = 0
+
+    for i in range(len(flight_matrix)):
+        cosine_sim_val = cache[y][i]
+        if cosine_sim_val > max_cos_sim:
+            max_cos_sim = cosine_sim_val
+            max_flight_path = i
+
+    return max_flight_path
+
+def brute_force_test(user_matrix, flight_matrix, cache):
+    for i in range(len(user_matrix)):
+        bf_val = brute_force(X, classes, i, cache)
+
+    return error_count
+
+'''
+Locality Sensitive Hashing
+'''
 # gets sign vector of vector, returns bit value of sign vector (0 =)
 def sign_bit_val(dp):
     # sign vector
@@ -210,9 +245,6 @@ def sign_bit_val(dp):
         pow -= 1
     return bit_val
 
-'''
-Locality Sensitive Hashing
-'''
 def lsh(k, flight_matrix, user_matrix, y, cosine_sim_cache):
     user_vector = user_matrix[y]
     max_cos_sim_in_bucket = -sys.maxsize-1
@@ -220,7 +252,7 @@ def lsh(k, flight_matrix, user_matrix, y, cosine_sim_cache):
     comparison_count = 0
 
     # normalize each vector
-    M = np.random.standard_normal(size=(k,7)) # lth hash table
+    M = np.random.standard_normal(size=(k,5)) # lth hash table
     for i in range(len(M)):
         temp = M[i] / (M[i]**2).sum()**0.5
         M[i] = temp
@@ -243,6 +275,7 @@ def lsh(k, flight_matrix, user_matrix, y, cosine_sim_cache):
             if cosine_sim_val >= max_cos_sim_in_bucket:
                 max_cos_sim_in_bucket = cosine_sim_val
                 max_flight_path_in_bucket = i
+
     # print("Number of comparisons: " + str(comparison_count))
     return (max_cos_sim_in_bucket, max_flight_path_in_bucket, comparison_count)
 
@@ -280,6 +313,37 @@ def compareCost(user_matrix, flight_matrix, recommendations):
     avg_user_costs = np.mean([path[0] for path in user_matrix])
     avg_rec_costs = np.mean([flight_matrix[idx][0] for idx in recommendations])
     return (avg_rec_costs < avg_user_costs, abs(round(avg_user_costs-avg_rec_costs,2)))
+
+def comparePerFlightPath(user_flight_data, recommendations, from_place, to_place):
+    user_total_cost = []
+    user_total_duration = []
+
+    for flight_path in user_flight_data:
+        flights = flight_path['segments']
+        from_place_user = flights[0]['from_place']['Code'] # from location
+        to_place_user = flights[-1]['to_place']['Code'] # end location
+
+        if from_place_user == from_place and to_place_user == to_place:
+            user_total_cost.append(float(flight_path['price'])) # price
+            user_total_duration.append(float(flight_path['duration'])) # duration in minutes
+
+    rec_total_cost = []
+    rec_total_duration = []
+    for rec in recommendations:
+        if flightPathMatch(rec['segments'], from_place, to_place):
+            rec_total_cost.append(rec['price'])
+            rec_total_duration.append(rec['duration'])
+
+    if len(rec_total_cost) == 0:
+        return [(0, 0, True),(0, 0, True)]
+
+    avg_user_costs = np.mean(user_total_cost)
+    avg_user_durations = np.mean(user_total_duration)
+
+    avg_rec_costs = np.mean(rec_total_cost)
+    avg_rec_durations = np.mean(rec_total_duration)
+
+    return [(avg_rec_costs < avg_user_costs, abs(round(avg_user_costs-avg_rec_costs,2)), False), (avg_rec_durations < avg_user_durations, abs(round(avg_user_durations-avg_rec_durations,2)), False)]
 
 '''
 Compares the average duration of a user's flight history and that of flight recommendations
@@ -320,9 +384,16 @@ PHASE 1
 flight_data = []
 for line in all_data:
     flight_data += line['result']
-user_history = user_input(['RDU','ATL'])
+user_history = user_input(user_data)
 dict = create_dict(flight_data, user_history)
-
+# print(dict)
+# print()
+# print(citiesIndexDict)
+print()
+# print("Total number of flight paths in flight data: " + str(totalNumFlightPaths))
+# print("Total number of airlines: " + str(len(dict)))
+# print("Total number of airports: " + str(len(citiesIndexDict)))
+# print()
 # compute averages of each airline
 averagesDict = computeAverages(dict)
 inputPoints = list(averagesDict.values())
@@ -404,28 +475,46 @@ print()
 '''
 PHASE 2
 '''
-filteredFlightData = filterFlightDataByAirline(flight_data, winning_airline)
-flight_matrix = createFlightMatrix(filteredFlightData)
-user_matrix = createUserMatrix('test.csv')
+filteredFlightData = filterFlightDataByAirline(flight_data, winning_airline, user_history)
+flight_matrix = createMatrix(filteredFlightData)
+user_matrix = createMatrix(user_data)
 cache = create_cosine_sim_cache(user_matrix, flight_matrix)
 
 print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
+# lsh_runs = [[4,4],[4,8],[4,16],[8,4],[8,8],[8,16],[16,4],[16,8],[16,16]]
+# for run in lsh_runs:
+#     print("l = % 2d, k = % 2d"% (run[0],run[1]))
+#     print(lsh_test(int(run[0]), int(run[1]), user_matrix, flight_matrix, cache))
+
 recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
+recommended_flight_paths = []
 for rec in recommendations:
     pprint.pprint(filteredFlightData[rec])
+    recommended_flight_paths.append(filteredFlightData[rec])
     print()
     print()
 
-print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
-costBenchmark = compareCost(user_matrix, flight_matrix, recommendations)
-if costBenchmark[0]:
-    print("Yes, User saves on average $" + str(costBenchmark[1]) + " per flight path")
-else:
-    print("No, User loses on average $" + str(costBenchmark[1]) + " per flight path")
-print()
-print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
-durationBenchmark = compareDuration(user_matrix, flight_matrix, recommendations)
-if durationBenchmark[0]:
-    print("Yes, User saves on average " + str(durationBenchmark[1]) + " min per flight path")
-else:
-    print("No, User gains on average " + str(durationBenchmark[1]) + " min per flight path")
+for (from_place, to_place) in user_history:
+    print("**************************************** FLIGHT PATH: " + from_place + " ==> " + to_place + " ****************************************")
+    benchmark = comparePerFlightPath(user_data, recommended_flight_paths, from_place, to_place)
+    if benchmark[0][2] or benchmark[1][2]:
+        print("No recommendations for given flight path")
+        print()
+    else:
+        print("------------WILL USER SAVE ON COST WITH OUR RECOMMENDATIONS?------------")
+        if benchmark[0][0]:
+            print("\u2713 Yes, User saves on average $" + str(benchmark[0][1]))
+        else:
+            if benchmark[0][1] == 0:
+                print("\u2716 No, User pays on average the same cost per flight path")
+            else: print("\u2716 No, User pays on average $" + str(benchmark[0][1]) + " more")
+        print()
+
+        print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
+        if benchmark[1][0]:
+            print("\u2713 Yes, User saves on average " + str(benchmark[1][1]) + " min")
+        else:
+            if benchmark[1][1] == 0:
+                print("\u2716 No, User travels on average the same duration per flight path")
+            else: print("\u2716 No, User travels on average " + str(benchmark[1][1]) + " min more")
+        print()

@@ -324,7 +324,7 @@ PHASE 1
 flight_data = []
 for line in all_data:
     flight_data += line['result']
-user_history = user_input(['RDU','ATL'])
+user_history = user_input(['RDU','ATL','BOS','DCA','SJU','SFO','DEN','CLT','JFK','IND','DEN','MSP'])
 dict = create_dict(flight_data, user_history)
 
 # compute averages and score each airline
@@ -369,11 +369,15 @@ costBenchmark = compareCost(user_matrix, flight_matrix, recommendations)
 if costBenchmark[0]:
     print("Yes, User saves on average $" + str(costBenchmark[1]) + " per flight path")
 else:
-    print("No, User loses on average $" + str(costBenchmark[1]) + " per flight path")
+    if costBenchmark[1] == 0:
+        print("No, User pays on average the same cost per flight path")
+    else: print("No, User pays on average $" + str(costBenchmark[1]) + " more per flight path")
 print()
 print("------------WILL USER SAVE ON DURATION WITH OUR RECOMMENDATIONS?------------")
 durationBenchmark = compareDuration(user_matrix, flight_matrix, recommendations)
 if durationBenchmark[0]:
     print("Yes, User saves on average " + str(durationBenchmark[1]) + " min per flight path")
 else:
-    print("No, User gains on average " + str(durationBenchmark[1]) + " min per flight path")
+    if durationBenchmark[1] == 0:
+        print("No, User travels on average the same duration per flight path")
+    else: print("No, User travels on average " + str(durationBenchmark[1]) + " more min per flight path")
