@@ -1,5 +1,10 @@
 # from flight_data import data
-from data import all_data
+from top30_nov22 import all_data_1
+from top30_nov23 import all_data_2
+from top30_nov24 import all_data_3
+from top30_nov25 import all_data_4
+all_data_1 += all_data_2 + all_data_3 + all_data_4
+
 from dataset4 import user_data
 
 from pareto_frontier import simple_cull, dominates
@@ -211,7 +216,7 @@ def create_cosine_sim_cache(user_matrix, flight_matrix):
 '''
 Brute force search
 '''
-def brute_force(user_matrix, flight_matrix, classes, y, cache):
+def brute_force(flight_matrix, y, cache):
     max_cos_sim = - sys.maxsize-1
     max_flight_path = 0
 
@@ -224,10 +229,14 @@ def brute_force(user_matrix, flight_matrix, classes, y, cache):
     return max_flight_path
 
 def brute_force_test(user_matrix, flight_matrix, cache):
+    recommendations = []
     for i in range(len(user_matrix)):
-        bf_val = brute_force(X, classes, i, cache)
+        bf_val = brute_force(flight_matrix, i, cache)
+        recommendations.append(bf_val)
 
-    return error_count
+    # print(str(len(user_matrix)*len(flight_matrix)) + " comparisons")
+    # print()
+    return recommendations
 
 '''
 Locality Sensitive Hashing
@@ -303,6 +312,8 @@ def lsh_test(l, k, user_matrix, flight_matrix, cache):
         recommendations.append(max_flight_path)
 
     # print("total # of comparisons: " + str(total_comparisons))
+    # print()
+    # print()
     return recommendations
 
 '''
@@ -382,11 +393,13 @@ def findAirlineByValue(airlineDict, value):
 PHASE 1
 '''
 flight_data = []
-for line in all_data:
+for line in all_data_1:
     flight_data += line['result']
+
+# print("Total number of flights: " + str(len(flight_data)))
 user_history = user_input(user_data)
-print("Total number of one-way flight paths user travels on: " + str(len(user_history)))
-print()
+# print("Total number of one-way flight paths user travels on: " + str(len(user_history)))
+# print()
 dict = create_dict(flight_data, user_history)
 # print(dict)
 # print()
@@ -483,18 +496,15 @@ user_matrix = createMatrix(user_data)
 cache = create_cosine_sim_cache(user_matrix, flight_matrix)
 
 print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
-# lsh_runs = [[4,4],[4,8],[4,16],[8,4],[8,8],[8,16],[16,4],[16,8],[16,16]]
-# for run in lsh_runs:
-#     print("l = % 2d, k = % 2d"% (run[0],run[1]))
-#     print(lsh_test(int(run[0]), int(run[1]), user_matrix, flight_matrix, cache))
-
-recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
+# recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
+recommendations = set(brute_force_test(user_matrix, flight_matrix, cache))
 recommended_flight_paths = []
+print("Number of recommendations: " + str(len(recommendations)))
 for rec in recommendations:
     pprint.pprint(filteredFlightData[rec])
     recommended_flight_paths.append(filteredFlightData[rec])
-    print()
-    print()
+    # print()
+print()
 
 for (from_place, to_place) in user_history:
     print("**************************************** FLIGHT PATH: " + from_place + " ==> " + to_place + " ****************************************")
