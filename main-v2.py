@@ -1,9 +1,15 @@
-# from flight_data import data
+
 from top30_nov22 import all_data_1
 from top30_nov23 import all_data_2
 from top30_nov24 import all_data_3
 from top30_nov25 import all_data_4
 all_data_1 += all_data_2 + all_data_3 + all_data_4
+
+import json
+
+all_data = ''
+with open('new.json', 'r') as outfile:
+    all_data = json.load(outfile)
 
 from dataset4 import user_data
 
@@ -19,8 +25,8 @@ import heapq
 import csv
 import pprint
 
-import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
+# import matplotlib.pyplot as plt
+# from mpl_toolkits import mplot3d
 
 # Dictionary of strings and ints
 airlineIndexDict = {
@@ -65,6 +71,8 @@ def user_input(user_flight_data):
             citiesIndexDict[to_place] = cityIndex
             cityIndex += 1
 
+    # print("number of user flight paths: " + str(len(flight_paths)))
+
     return flight_paths
 
 '''
@@ -81,6 +89,10 @@ def create_dict(flight_data, user_history):
 
     for flight_path in flight_data:
         flights = flight_path['segments']
+
+        if flights[0]['from_place'] == "None" or flights[0]['from_place'] == "None":
+            continue
+
         from_place = flights[0]['from_place']['Code'] # from location
         to_place = flights[-1]['to_place']['Code'] # end location
 
@@ -311,8 +323,7 @@ def lsh_test(l, k, user_matrix, flight_matrix, cache):
 
         recommendations.append(max_flight_path)
 
-    # print("total # of comparisons: " + str(total_comparisons))
-    # print()
+    # print(str(total_comparisons))
     # print()
     return recommendations
 
@@ -393,9 +404,17 @@ def findAirlineByValue(airlineDict, value):
 PHASE 1
 '''
 flight_data = []
-for line in all_data_1:
-    flight_data += line['result']
-
+res = 0
+no_res = 0
+for dp in all_data:
+    try:
+        flight_data += dp['result']
+        res += 1
+    except:
+        no_res += 1
+        None
+# print("results = " + str(res))
+# print("no results = " + str(no_res))
 # print("Total number of flights: " + str(len(flight_data)))
 user_history = user_input(user_data)
 # print("Total number of one-way flight paths user travels on: " + str(len(user_history)))
@@ -496,16 +515,17 @@ user_matrix = createMatrix(user_data)
 cache = create_cosine_sim_cache(user_matrix, flight_matrix)
 
 print("------------USER SHOULD PURCHASE THE FOLLOWING FLIGHTS OFFERED BY " + winning_airline + ":------------")
-# recommendations = set(lsh_test(16, 16, user_matrix, flight_matrix, cache))
+params = [[4,4],[4,8],[4,16],[8,4],[8,8],[8,16],[16,4],[16,8],[16,16]]
+
 recommendations = set(brute_force_test(user_matrix, flight_matrix, cache))
 recommended_flight_paths = []
-print("Number of recommendations: " + str(len(recommendations)))
+# print("Number of recommendations: " + str(len(recommendations)))
 for rec in recommendations:
-    pprint.pprint(filteredFlightData[rec])
+    # pprint.pprint(filteredFlightData[rec])
     recommended_flight_paths.append(filteredFlightData[rec])
     # print()
 print()
-
+print()
 for (from_place, to_place) in user_history:
     print("**************************************** FLIGHT PATH: " + from_place + " ==> " + to_place + " ****************************************")
     benchmark = comparePerFlightPath(user_data, recommended_flight_paths, from_place, to_place)
